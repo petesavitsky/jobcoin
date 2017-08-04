@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+<head>
+<title>JobCoin Mixer Service</title>
+<link rel="stylesheet" th:href="@{/css/main.css}" />
+<script type="text/javascript" th:src="@{/js/jquery-3.2.1.min.js}"></script>
+<script type="text/javascript" th:src="@{/js/main.js}"></script>
+</head>
+<body>
+	<div class="title-container">
+		<h1>Welcome to the JobCoin Mixer!</h1>
+	</div>
+	<div class="instructions-container">
+		<ol>
+			<li>Add a list of the addresses you want your coins to be transferred to after mixing</li>
+			<li>Add an optional email address to prevent accidentally receiving your own coins back</li>
+			<li>Click &quot;Get Deposit Address&quot; to receive a deposit address</li>
+			<li>Send the amount you wish to mix to the Deposit Address (Must be a single deposit!)</li>
+			<li>Receive your coins at the provided addresses within the specified timeframe</li>
+		</ol>
+	</div>
+	<div class="form-container">
+		<form class="mixer-form" id="mixer-form" th:action="@{/mixer-form}" method="post">
+			<input name="email" id="email" type="email" placeholder="Optional"></input> 
+			<input name="addresses" type="textarea" placeholder="Comma Separated List of Addresses"></input> 
+			<input name="timeframeValue" type="text" placeholder="1 Day"></input>
+			<button type="button">Get Deposit Address</button>
+		</form>
+	</div>
+</body>
+</html>
