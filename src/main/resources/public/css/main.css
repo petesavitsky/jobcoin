@@ -1,0 +1,14 @@
+.page-container {
+	max-width: 1024px;
+	margin: 0px auto;
+	text-align: center;
+}
+
+.instructions-container {
+	text-align: left;
+	display: inline-block;
+}
+
+.deposit-address-container {
+	display: none;
+}
