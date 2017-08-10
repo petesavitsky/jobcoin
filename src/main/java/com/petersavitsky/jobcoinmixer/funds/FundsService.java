@@ -5,8 +5,10 @@ import java.math.RoundingMode;
 import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 
@@ -68,33 +70,17 @@ public class FundsService {
 		}
 		Set<FundsReservationAddress> fundsReservationAddresses = findAddressesForFunds(amount, outputAddresses,
 				blacklistedAddresses);
-		for (FundsReservationAddress fundsReservationAddress : fundsReservationAddresses) {
-			AddressBalance availableBalance = availableFunds.get(fundsReservationAddress.getFromAddress());
-			try {
-				availableBalance.removeFunds(fundsReservationAddress.getReservedAmount());
-			} catch (InsufficientFundsException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			if (availableBalance.getBalance().compareTo(BigDecimal.ZERO) > 0) {
-				availableFunds.put(availableBalance.getAddress(), availableBalance);
-			} else {
-				availableFunds.remove(availableBalance.getAddress());
-			}
-		}
 		FundsReservation fundsReservation = new FundsReservation(fundsReservationId, fundsReservationAddresses);
 		reservedFunds.put(fundsReservationId, fundsReservation);
 		return fundsReservationId;
 	}
 
-	public synchronized void addFunds(String address, String originAddress, BigDecimal amount) {
+	public synchronized void addFunds(String address, Set<String> originAddresses, BigDecimal amount) {
 		AddressBalance addressBalance = availableFunds.get(address);
 		if (addressBalance == null) {
-			Set<String> originAddresses = new HashSet<>();
-			originAddresses.add(originAddress);
 			addressBalance = new AddressBalance(address, originAddresses, amount);
 		} else {
-			addressBalance.addFunds(originAddress, amount);
+			addressBalance.addFunds(originAddresses, amount);
 		}
 		availableFunds.put(address, addressBalance);
 	}
@@ -123,9 +109,6 @@ public class FundsService {
 
 	private Set<FundsReservationAddress> findAddressesForFunds(BigDecimal amount, Set<String> outputAddresses,
 			Set<String> blacklistedAddresses) {
-		// this might break down if we don't have enough addresses for the
-		// number of outputs - either put a limit, or allow more than one output
-		// per available source
 		BigDecimal amountRemaining = amount;
 		LinkedList<Pair<String, BigDecimal>> disbursementAmounts = new LinkedList<>();
 		for (String outputAddress : outputAddresses) {
@@ -142,24 +125,36 @@ public class FundsService {
 			}
 		}
 		Set<FundsReservationAddress> reservations = new HashSet<>();
-		for (AddressBalance addressBalance : availableFunds.values()) {
-			Set<String> blacklistedOriginAddresses = addressBalance.getOriginAddresses();
-			blacklistedOriginAddresses.retainAll(blacklistedAddresses);
-			if (blacklistedOriginAddresses.isEmpty()) {
-				// good to go
-				Pair<String, BigDecimal> addressDisbursmentPair = disbursementAmounts.peekFirst();
-				BigDecimal requiredAmount = addressDisbursmentPair.getRight();
-				if (requiredAmount.compareTo(addressBalance.getBalance()) < 1) {
-					// we have enough
-					FundsReservationAddress reservationAmount = new FundsReservationAddress(addressBalance.getAddress(),
-							addressDisbursmentPair.getLeft(), requiredAmount);
-					reservations.add(reservationAmount);
-					disbursementAmounts.removeFirst();
-					if (disbursementAmounts.isEmpty()) {
+		for (Pair<String, BigDecimal> addressDisbursementPair : disbursementAmounts) {
+			BigDecimal remainingDisbursement = addressDisbursementPair.getRight();
+			Iterator<Entry<String, AddressBalance>> addressBalanceIterator = availableFunds.entrySet().iterator();
+			Map<String, AddressBalance> updatedBalances = new HashMap<>();
+			while (addressBalanceIterator.hasNext() && remainingDisbursement.compareTo(BigDecimal.ZERO) > 0) {
+				Entry<String, AddressBalance> addressBalanceEntry = addressBalanceIterator.next();
+				AddressBalance addressBalance = addressBalanceEntry.getValue();
+				Set<String> blacklistedOriginAddresses = addressBalance.getOriginAddresses();
+				blacklistedOriginAddresses.retainAll(blacklistedAddresses);
+				if (blacklistedOriginAddresses.isEmpty()) {
+					if (remainingDisbursement.compareTo(addressBalance.getBalance()) < 1) {
+						FundsReservationAddress reservationAmount = new FundsReservationAddress(
+								addressBalance.getAddress(), addressDisbursementPair.getLeft(), remainingDisbursement);
+						reservations.add(reservationAmount);
+						AddressBalance updatedBalance = new AddressBalance(addressBalance.getAddress(),
+								addressBalance.getOriginAddresses(),
+								addressBalance.getBalance().subtract(remainingDisbursement));
+						updatedBalances.put(updatedBalance.getAddress(), updatedBalance);
 						break;
+					} else {
+						BigDecimal amountToDisburse = addressBalance.getBalance();
+						remainingDisbursement = remainingDisbursement.subtract(amountToDisburse);
+						FundsReservationAddress reservationAmount = new FundsReservationAddress(
+								addressBalance.getAddress(), addressDisbursementPair.getLeft(), amountToDisburse);
+						reservations.add(reservationAmount);
+						addressBalanceIterator.remove();
 					}
 				}
 			}
+			availableFunds.putAll(updatedBalances);
 		}
 		return reservations;
 	}

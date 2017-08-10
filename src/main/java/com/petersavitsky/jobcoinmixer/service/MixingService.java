@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import com.petersavitsky.jobcoinmixer.client.AddressInfo;
 import com.petersavitsky.jobcoinmixer.client.JobcoinClient;
 import com.petersavitsky.jobcoinmixer.client.JobcoinClientException;
+import com.petersavitsky.jobcoinmixer.client.Transaction;
 import com.petersavitsky.jobcoinmixer.funds.FundsService;
 
 import groovy.lang.Singleton;
@@ -68,8 +69,14 @@ public class MixingService {
 			try {
 				AddressInfo addressInfo = jobcoinClient.getAddressInfo(pendingDeposit.getDepositAddress());
 				BigDecimal depositAmount = new BigDecimal(addressInfo.getBalance());
-				Set<String> inputAddresses = new HashSet<>();
 				if (depositAmount.compareTo(BigDecimal.ZERO) > 0) {
+					Set<String> inputAddresses = new HashSet<>();
+					for (Transaction transaction : addressInfo.getTransactions()) {
+						if (transaction.getFromAddress() != null) {
+							inputAddresses.add(transaction.getFromAddress());
+						}
+					}
+					fundsService.addFunds(pendingDeposit.getDepositAddress(), inputAddresses, depositAmount);
 					UUID reservationId = fundsService.reserveFunds(depositAmount, inputAddresses,
 							pendingDeposit.getOutputAddresses());
 					ScheduledFuture<MixingTransactionResult> future = MIXING_TRANSACTION_SERVICE.schedule(
@@ -123,11 +130,5 @@ public class MixingService {
 
 		};
 	}
-
-	// funds
-	// amount - originating_address_hash - email_hash
-	// scheduled delivery
-	// amount - address - delivery_date_time - originating_address_hash
-	//
 
 }

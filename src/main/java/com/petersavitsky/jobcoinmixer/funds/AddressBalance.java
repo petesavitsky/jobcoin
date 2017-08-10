@@ -18,9 +18,9 @@ public class AddressBalance {
 		}
 	}
 
-	public void addFunds(String originAddress, BigDecimal amount) {
+	public void addFunds(Set<String> originAddresses, BigDecimal amount) {
 		// check for negative amount?
-		originAddresses.add(originAddress);
+		originAddresses.addAll(originAddresses);
 		balance = balance.add(amount);
 	}
 
