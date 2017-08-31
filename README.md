@@ -3,7 +3,7 @@
 This is a Maven managed Spring Boot based Java application.
 
 To run via command line, you must have maven installed. From the project's root directory, you can use the command `mvn spring-boot:run`.
-It is also possible to run via the included jar using `java -jar target/jobcoin-mixer-0.0.1-SNAPSHOT.jar`
+It is also possible to run by building a jar and using `java -jar target/jobcoin-mixer-0.0.1-SNAPSHOT.jar`
 
 The application will start and listen at localhost:8080. There is a UI with instsructions for initiating a mixing transaction.
 
